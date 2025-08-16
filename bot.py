@@ -5,8 +5,8 @@ import subprocess
 from highrise import BaseBot, Highrise, User
 
 # 🔑 Apne Highrise ka API Key aur Room ID dalna
-API_KEY = "YOUR_HIGHRISE_API_KEY"
-ROOM_ID = "YOUR_ROOM_ID"
+API_KEY = "685328bb77e05cc9ab65dcb2"
+ROOM_ID = "687e76490877480cff4aa6ef"
 
 # Queue system
 music_queue = []
