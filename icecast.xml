@@ -1,0 +1,31 @@
+<icecast>
+    <limits>
+        <clients>100</clients>
+        <sources>2</sources>
+        <queue-size>524288</queue-size>
+        <client-timeout>30</client-timeout>
+        <header-timeout>15</header-timeout>
+        <source-timeout>10</source-timeout>
+    </limits>
+
+    <authentication>
+        <source-password>yuvi123</source-password>
+        <relay-password>yuvi123</relay-password>
+        <admin-user>admin</admin-user>
+        <admin-password>admin</admin-password>
+    </authentication>
+
+    <hostname>localhost</hostname>
+
+    <listen-socket>
+        <port>8001</port>
+    </listen-socket>
+
+    <mount>
+        <mount-name>/universe2003</mount-name>
+        <password>yuvi123</password>
+        <max-listeners>150</max-listeners>
+    </mount>
+
+    <fileserve>1</fileserve>
+</icecast>
