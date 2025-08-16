@@ -1,78 +1,71 @@
-import os
-import subprocess
 import asyncio
 import websockets
 import yt_dlp
+import subprocess
+from highrise import BaseBot, Highrise, User
 
-QUEUE = []
-CURRENT = None
-ICECAST_URL = "icecast://source:hackme@localhost:8000/stream"
+# 🔑 Apne Highrise ka API Key aur Room ID dalna
+API_KEY = "YOUR_HIGHRISE_API_KEY"
+ROOM_ID = "YOUR_ROOM_ID"
 
-async def play_song(song_url):
-    global CURRENT
-    CURRENT = song_url
+# Queue system
+music_queue = []
 
-    ydl_opts = {
-        'format': 'bestaudio/best',
-        'quiet': True,
-        'noplaylist': True,
-        'extract_flat': False
-    }
+class RadioBot(BaseBot):
+    async def on_chat(self, user: User, message: str) -> None:
+        if message.startswith("!play "):
+            url = message.split(" ", 1)[1]
+            await self.send_whisper(user.id, f"🎶 Adding to queue: {url}")
+            music_queue.append(url)
+            if len(music_queue) == 1:
+                await play_music(url)
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(song_url, download=False)
-        audio_url = info['url']
+        elif message == "!skip":
+            if music_queue:
+                await self.send_whisper(user.id, "⏭ Skipping current track...")
+                await skip_track()
+            else:
+                await self.send_whisper(user.id, "❌ No music in queue.")
 
-    cmd = [
-        "ffmpeg", "-re", "-i", audio_url,
-        "-vn", "-c:a", "mp3", "-content_type", "audio/mpeg",
-        "-f", "mp3", ICECAST_URL
-    ]
+        elif message == "!queue":
+            if music_queue:
+                queue_list = "\n".join([f"{i+1}. {song}" for i, song in enumerate(music_queue)])
+                await self.send_whisper(user.id, f"📜 Current Queue:\n{queue_list}")
+            else:
+                await self.send_whisper(user.id, "🎵 Queue is empty.")
 
-    process = subprocess.Popen(cmd)
-    process.wait()
-
-async def handle_message(msg):
-    global QUEUE, CURRENT
-
-    if msg.startswith("!p "):
-        query = msg[3:]
-        print(f"Searching: {query}")
-
-        ydl_opts = {'quiet': True, 'default_search': 'ytsearch1'}
+# 🔊 Music playback using yt-dlp + ffmpeg
+async def play_music(url):
+    try:
+        ydl_opts = {"format": "bestaudio", "quiet": True}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(query, download=False)
-            url = info['entries'][0]['url']
+            info = ydl.extract_info(url, download=False)
+            audio_url = info["url"]
 
-        QUEUE.append(url)
-        print(f"Added to queue: {url}")
+        process = subprocess.Popen(
+            ["ffmpeg", "-i", audio_url, "-vn", "-f", "mp3", "pipe:1"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        )
 
-        if CURRENT is None:
-            await play_queue()
+        await asyncio.sleep(10)  # simulate playback
+        process.kill()
 
-    elif msg == "!skip":
-        print("Skipping song...")
-        await skip_song()
+        # Finish song → play next
+        music_queue.pop(0)
+        if music_queue:
+            await play_music(music_queue[0])
 
-    elif msg == "!stop":
-        print("Stopping playback...")
-        QUEUE.clear()
-        CURRENT = None
-        os.system("pkill ffmpeg")
+    except Exception as e:
+        print("Error in playback:", e)
 
-async def play_queue():
-    global QUEUE
-    while QUEUE:
-        url = QUEUE.pop(0)
-        await play_song(url)
+async def skip_track():
+    if music_queue:
+        music_queue.pop(0)
+        if music_queue:
+            await play_music(music_queue[0])
 
-async def skip_song():
-    os.system("pkill ffmpeg")
-
-async def main():
-    while True:
-        msg = input("Command: ")
-        await handle_message(msg)
-
+# 🚀 Run bot
 if __name__ == "__main__":
-    asyncio.run(main())
+    bot = RadioBot()
+    Highrise(bot).connect(API_KEY, ROOM_ID)
